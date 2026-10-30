@@ -89,6 +89,7 @@ ul.list span{color:var(--mute)}
       <div><label for="npd">Từ mới mỗi ngày</label><input id="npd" type="number" min="0" max="200"></div>
       <div><label for="ret">Mức nhớ mục tiêu (%)</label><input id="ret" type="number" min="70" max="97"></div>
       <div><label for="auto">Tự động phát âm</label><select id="auto"><option value="0">Tắt</option><option value="1">Đọc từ khi hiện thẻ</option><option value="2">Đọc từ, rồi đọc câu ví dụ khi lật</option></select></div>
+      <div><label for="both">Ghi âm cùng lúc khi chấm điểm</label><select id="both"><option value="0">Tắt (khuyên dùng trên điện thoại)</option><option value="1">Bật (thử trên máy tính)</option></select></div>
       <div><label for="tUrl">Máy chủ dịch LibreTranslate (tùy chọn)</label><input id="tUrl" placeholder="https://libretranslate.example.com"></div>
       <div><label for="tKey">Khóa API dịch (tùy chọn)</label><input id="tKey" type="password" autocomplete="off"></div>
       <div><label for="aiP">Mô hình AI viết ví dụ (tùy chọn)</label><select id="aiP"><option value="">Tắt</option><option value="http://localhost:11434/v1">Ollama (chạy trên máy bạn)</option><option value="https://generativelanguage.googleapis.com/v1beta/openai">Google Gemini (có gói miễn phí)</option><option value="https://api.groq.com/openai/v1">Groq (có gói miễn phí)</option><option value="https://openrouter.ai/api/v1">OpenRouter (có model miễn phí)</option><option value="custom">Khác (chuẩn OpenAI)</option></select></div>
@@ -322,20 +323,23 @@ async function saveRec(c,both){
   }
   render();
 }
+async function recordOnly(){
+  if(starting||rec)return;
+  if(mr&&mr.state==='recording'){stopRec();return render();}
+  starting=true; const ok=await startRec(); starting=false;
+  if(!ok)result={err:'Không mở được micro. Hãy cấp quyền micro cho trang này.'};
+  render();
+}
 async function listen(){
   const c=cur(); if(!c||starting)return;
   if(rec){rec.stop();return;}
-  if(!SR){
-    if(mr&&mr.state==='recording'){stopRec();return render();}
-    starting=true; const ok=await startRec(); starting=false;
-    result={err:ok?'Trình duyệt này không hỗ trợ chấm điểm tự động nên app chỉ ghi âm cho bạn tự nghe lại. Hãy dùng Chrome, Edge hoặc Safari để có điểm.':'Không mở được micro. Hãy cấp quyền micro cho trang này.'};
-    return render();
-  }
-  result=null; starting=true; render(); await startRec(); starting=false;
+  if(!SR){result={err:'Trình duyệt này không hỗ trợ chấm điểm tự động. Bạn vẫn dùng được nút Ghi âm để tự nghe lại. Hãy dùng Chrome, Edge hoặc Safari để có điểm.'};return render();}
+  result=null;
+  if(S.cfg.both){starting=true;render();await startRec();starting=false;}
   rec=new SR(); rec.lang=S.cfg.lang; rec.maxAlternatives=5; rec.interimResults=false;
   rec.onresult=e=>{result=score(c.w,[...e.results[0]].map(a=>({t:a.transcript,c:a.confidence})));};
-  rec.onerror=e=>{result={err:({'not-allowed':'Bạn chưa cấp quyền micro cho trang này.','no-speech':'Không nghe thấy giọng nói. Thử nói to và gần micro hơn.','network':'Lỗi mạng khi nhận dạng giọng nói.','audio-capture':'Không tìm thấy micro.'})[e.error]||'Lỗi nhận dạng: '+e.error};};
-  rec.onend=()=>{rec=null;stopRec();render();};
+  rec.onerror=e=>{result={err:({'not-allowed':'Bạn chưa cấp quyền micro cho trang này.','no-speech':'Không nghe thấy giọng nói. Thử nói to và gần micro hơn.','network':'Lỗi mạng khi nhận dạng giọng nói.','audio-capture':'Không dùng được micro (có thể đang bị ghi âm chiếm). Hãy tắt “Ghi âm cùng lúc khi chấm điểm” trong Cài đặt.','service-not-allowed':'Trình duyệt không cho dùng nhận dạng giọng nói trên trang này.','language-not-supported':'Trình duyệt chưa hỗ trợ nhận dạng cho ngôn ngữ này.','aborted':'Đã dừng.'})[e.error]||'Lỗi nhận dạng: '+e.error};};
+  rec.onend=()=>{rec=null;stopRec();if(!result)result={err:'Chưa nhận được kết quả. Hãy bấm Nói thử rồi nói ngay, gần micro. Nếu bạn đã bật ghi âm cùng lúc trong Cài đặt thì hãy tắt đi, vì nhiều điện thoại không cho làm cả hai việc cùng lúc.'};render();};
   try{rec.start();}catch(e){rec=null;stopRec();} render();
 }
 
@@ -355,7 +359,8 @@ function render(){
   let h=`<div class="counts"><span>Mới <b>${newN}</b></span><span>Ôn lại <b>${dueN}</b></span></div>
   <div class="card"><p class="word" lang="${S.cfg.lang}">${esc(c.w)}</p>${c.ipa?`<p class="ipa">${esc(c.ipa)}</p>`:''}
   <div class="row"><button class="btn" id="say" aria-label="Nghe phát âm">Nghe</button>
-  <button class="btn ${recording()?'rec':'pri'}" id="mic">${rec?'Đang nghe… bấm để dừng':recording()?'Đang ghi… bấm để dừng':'Nói thử'}</button></div>`;
+  <button class="btn ${rec?'rec':'pri'}" id="mic">${rec?'Đang nghe… bấm để dừng':'Nói thử (chấm điểm)'}</button>
+  <button class="btn ${mr&&mr.state==='recording'&&!rec?'rec':''}" id="recbtn" ${rec?'disabled':''}>${mr&&mr.state==='recording'&&!rec?'Đang ghi… bấm để dừng':'Ghi âm'}</button></div>`;
   if(result){
     if(result.err)h+=`<p class="note" role="alert" style="color:var(--bad)">${esc(result.err)}</p>`;
     else{
@@ -378,7 +383,7 @@ function render(){
   }
   el.innerHTML=h;
   if(say1){say1=false;if(S.cfg.auto>=1)speak(c.w);}
-  $('#say').onclick=()=>speak(c.w); $('#mic').onclick=listen;
+  $('#say').onclick=()=>speak(c.w); $('#mic').onclick=listen; $('#recbtn').onclick=recordOnly;
   const se=$('#sayex'); if(se)se.onclick=()=>speak(c.ex);
   const pm=$('#playme'); if(pm)pm.onclick=()=>new Audio(recUrl).play();
   const cp=$('#cmp'); if(cp)cp.onclick=()=>speak(c.w,()=>new Audio(recUrl).play());
@@ -497,7 +502,7 @@ async function fillMissing(list){
 const sel=new Set(), qq=()=>norm($('#q').value||'');
 const updSel=()=>{$('#selcount').textContent=sel.size?sel.size+' từ đã chọn':'';};
 function renderDeck(){
-  $('#lang').value=S.cfg.lang; $('#npd').value=S.cfg.npd; $('#ret').value=Math.round((S.cfg.ret||.9)*100); $('#auto').value=S.cfg.auto||0; $('#tUrl').value=S.cfg.tUrl||''; $('#tKey').value=S.cfg.tKey||'';
+  $('#lang').value=S.cfg.lang; $('#npd').value=S.cfg.npd; $('#ret').value=Math.round((S.cfg.ret||.9)*100); $('#auto').value=S.cfg.auto||0; $('#both').value=S.cfg.both||0; $('#tUrl').value=S.cfg.tUrl||''; $('#tKey').value=S.cfg.tKey||'';
   $('#aiBase').value=S.cfg.aiBase||''; $('#aiModel').value=S.cfg.aiModel||''; $('#aiKey').value=S.cfg.aiKey||''; ['ttsUrl','ttsVoice','ttsModel','ttsKey'].forEach(k=>$('#'+k).value=S.cfg[k]||'');
   $('#aiP').value=[...$('#aiP').options].some(o=>o.value&&o.value===S.cfg.aiBase)?S.cfg.aiBase:(S.cfg.aiBase?'custom':'');
   $('#dtitle').textContent=`Danh sách từ (${S.cards.length})`;
@@ -511,6 +516,7 @@ $('#lang').onchange=e=>{S.cfg.lang=e.target.value;save();};
 $('#npd').onchange=e=>{S.cfg.npd=Math.max(0,+e.target.value||0);save();buildQueue();};
 $('#ret').onchange=e=>{S.cfg.ret=clamp((+e.target.value||90)/100,.7,.97);save();};
 $('#auto').onchange=e=>{S.cfg.auto=+e.target.value;save();};
+$('#both').onchange=e=>{S.cfg.both=+e.target.value;save();};
 $('#tUrl').onchange=e=>{S.cfg.tUrl=e.target.value.trim();save();};
 $('#tKey').onchange=e=>{S.cfg.tKey=e.target.value.trim();save();};
 $('#aiP').onchange=e=>{const v=e.target.value;if(v!=='custom')S.cfg.aiBase=v;$('#aiBase').value=S.cfg.aiBase||'';if(v==='custom')$('#aiBase').focus();save();};
