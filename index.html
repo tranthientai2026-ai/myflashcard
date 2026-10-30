@@ -203,10 +203,10 @@ const cur=()=>S.cards.find(c=>c.id===queue[0]);
 
 /* ---- Giọng nói ---- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-function speak(t){
-  if(!('speechSynthesis' in window))return;
+function speak(t,cb){
+  if(!('speechSynthesis' in window)){if(cb)cb();return;}
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(t); u.lang=S.cfg.lang; u.rate=.9;
+  const u=new SpeechSynthesisUtterance(t); u.lang=S.cfg.lang; u.rate=.9; if(cb){u.onend=cb;u.onerror=cb;}
   const v=speechSynthesis.getVoices().find(v=>v.lang.replace('_','-')===S.cfg.lang); if(v)u.voice=v;
   speechSynthesis.speak(u);
 }
@@ -225,15 +225,37 @@ function score(target,alts){
   const words=t.split(' ').map(w=>({w,s:Math.max(0,...hw.map(h=>sim(w,h)))}));
   return {pct:Math.round(best.s*100),heard:best.t,conf:best.c,words};
 }
-function listen(){
-  const c=cur(); if(!c)return;
-  if(!SR){result={err:'Trình duyệt này không hỗ trợ nhận dạng giọng nói. Hãy dùng Chrome, Edge hoặc Safari.'};return render();}
+let mr=null, chunks=[], recUrl=null, stream=null, tm=null, starting=false;
+const canRec=()=>!!(window.MediaRecorder&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+function stopRec(){clearTimeout(tm);if(mr&&mr.state!=='inactive')mr.stop();}
+function clearRec(){clearTimeout(tm);if(mr){mr.onstop=null;if(mr.state!=='inactive')mr.stop();}if(stream)stream.getTracks().forEach(t=>t.stop());mr=null;chunks=[];if(recUrl)URL.revokeObjectURL(recUrl);recUrl=null;}
+async function startRec(){
+  clearRec();
+  if(!canRec())return false;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    const m=new MediaRecorder(stream); mr=m; chunks=[];
+    m.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    m.onstop=()=>{stream.getTracks().forEach(t=>t.stop());recUrl=chunks.length?URL.createObjectURL(new Blob(chunks,{type:m.mimeType||'audio/webm'})):null;render();};
+    m.start(); tm=setTimeout(stopRec,15000); return true;
+  }catch(e){mr=null;return false;}
+}
+const recording=()=>!!(rec||(mr&&mr.state==='recording'));
+async function listen(){
+  const c=cur(); if(!c||starting)return;
   if(rec){rec.stop();return;}
+  if(!SR){
+    if(mr&&mr.state==='recording'){stopRec();return render();}
+    starting=true; const ok=await startRec(); starting=false;
+    result={err:ok?'Trình duyệt này không hỗ trợ chấm điểm tự động nên app chỉ ghi âm cho bạn tự nghe lại. Hãy dùng Chrome, Edge hoặc Safari để có điểm.':'Không mở được micro. Hãy cấp quyền micro cho trang này.'};
+    return render();
+  }
+  result=null; starting=true; render(); await startRec(); starting=false;
   rec=new SR(); rec.lang=S.cfg.lang; rec.maxAlternatives=5; rec.interimResults=false;
   rec.onresult=e=>{result=score(c.w,[...e.results[0]].map(a=>({t:a.transcript,c:a.confidence})));};
   rec.onerror=e=>{result={err:({'not-allowed':'Bạn chưa cấp quyền micro cho trang này.','no-speech':'Không nghe thấy giọng nói. Thử nói to và gần micro hơn.','network':'Lỗi mạng khi nhận dạng giọng nói.','audio-capture':'Không tìm thấy micro.'})[e.error]||'Lỗi nhận dạng: '+e.error};};
-  rec.onend=()=>{rec=null;render();};
-  result=null; try{rec.start();}catch(e){rec=null;} render();
+  rec.onend=()=>{rec=null;stopRec();render();};
+  try{rec.start();}catch(e){rec=null;stopRec();} render();
 }
 
 /* ---- Hiển thị ---- */
@@ -252,7 +274,7 @@ function render(){
   let h=`<div class="counts"><span>Mới <b>${newN}</b></span><span>Ôn lại <b>${dueN}</b></span></div>
   <div class="card"><p class="word" lang="${S.cfg.lang}">${esc(c.w)}</p>${c.ipa?`<p class="ipa">${esc(c.ipa)}</p>`:''}
   <div class="row"><button class="btn" id="say" aria-label="Nghe phát âm">Nghe</button>
-  <button class="btn ${rec?'rec':'pri'}" id="mic">${rec?'Đang nghe… bấm để dừng':'Nói thử'}</button></div>`;
+  <button class="btn ${recording()?'rec':'pri'}" id="mic">${rec?'Đang nghe… bấm để dừng':recording()?'Đang ghi… bấm để dừng':'Nói thử'}</button></div>`;
   if(result){
     if(result.err)h+=`<p class="note" role="alert" style="color:var(--bad)">${esc(result.err)}</p>`;
     else{
@@ -262,6 +284,7 @@ function render(){
       <p class="note">Máy nghe được: “${esc(result.heard)}”${result.conf?` (độ tin cậy ${Math.round(result.conf*100)}%)`:''}</p>`;
     }
   }
+  if(recUrl)h+=`<div class="row"><button class="btn" id="playme">Nghe lại giọng bạn</button><button class="btn" id="cmp">Nghe mẫu rồi nghe bạn</button></div><p class="note">Bản ghi chỉ nằm trong trình duyệt của bạn và mất khi sang thẻ khác.</p>`;
   if(flipped){
     h+=`<div class="meaning">${c.m?`<p><strong>${esc(c.m)}</strong></p>`:'<p class="note">Chưa có nghĩa. Vào “Bộ từ” để tự điền hoặc sửa.</p>'}${c.ex?`<p class="ex">${esc(c.ex)}</p>`:''}${c.exm?`<p class="ex" style="font-style:normal">${esc(c.exm)}</p>`:''}${c.ex?'<p><button class="btn" id="sayex">Nghe câu ví dụ</button></p>':''}</div>`;
   }
@@ -276,6 +299,8 @@ function render(){
   if(say1){say1=false;if(S.cfg.auto>=1)speak(c.w);}
   $('#say').onclick=()=>speak(c.w); $('#mic').onclick=listen;
   const se=$('#sayex'); if(se)se.onclick=()=>speak(c.ex);
+  const pm=$('#playme'); if(pm)pm.onclick=()=>new Audio(recUrl).play();
+  const cp=$('#cmp'); if(cp)cp.onclick=()=>speak(c.w,()=>new Audio(recUrl).play());
   const f=$('#flip'); if(f)f.onclick=flip;
   el.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>rate(+b.dataset.q));
 }
@@ -285,7 +310,7 @@ function rate(q){
   const L=logToday(); if(!c.seen)L.n++; L.r++;
   const i=S.cards.indexOf(c); S.cards[i]=sched(c,q);
   queue.shift(); if(q===1)queue.push(c.id);
-  flipped=false;result=null;say1=true;save();render();
+  flipped=false;result=null;say1=true;clearRec();save();render();
 }
 addEventListener('keydown',e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||$('#study').hidden)return;
@@ -445,7 +470,7 @@ function renderStats(){
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
   ['study','deck','stats'].forEach(v=>$('#'+v).hidden=v!==b.dataset.v);
-  if(b.dataset.v==='study'){buildQueue();flipped=false;result=null;say1=true;render();}
+  if(b.dataset.v==='study'){buildQueue();flipped=false;result=null;say1=true;clearRec();render();}
   if(b.dataset.v==='deck')renderDeck();
   if(b.dataset.v==='stats')renderStats();
 });
