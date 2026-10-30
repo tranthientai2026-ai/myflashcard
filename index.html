@@ -95,6 +95,10 @@ ul.list span{color:var(--mute)}
       <div><label for="aiBase">Địa chỉ API</label><input id="aiBase" placeholder="https://…/v1"></div>
       <div><label for="aiModel">Tên model</label><input id="aiModel" placeholder="theo trang nhà cung cấp"></div>
       <div><label for="aiKey">Khóa API AI</label><input id="aiKey" type="password" autocomplete="off"></div>
+      <div><label for="ttsUrl">Máy chủ đọc mẫu để xuất MP3 (tùy chọn, chuẩn /audio/speech)</label><input id="ttsUrl" placeholder="http://localhost:8880/v1"></div>
+      <div><label for="ttsVoice">Giọng đọc mẫu</label><input id="ttsVoice" placeholder="ví dụ: alloy"></div>
+      <div><label for="ttsModel">Model đọc mẫu</label><input id="ttsModel" placeholder="ví dụ: tts-1"></div>
+      <div><label for="ttsKey">Khóa API đọc mẫu</label><input id="ttsKey" type="password" autocomplete="off"></div>
     </div>
   </div>
   <div class="panel">
@@ -118,7 +122,12 @@ ul.list span{color:var(--mute)}
       <button class="btn" id="reset">Đặt lại tiến độ</button>
     </div>
   </div>
-  <div class="panel"><h2 id="dtitle">Danh sách từ</h2><ul class="list" id="list"></ul></div>
+  <div class="panel"><h2 id="dtitle">Danh sách từ</h2>
+    <input id="q" type="search" placeholder="Tìm từ hoặc nghĩa…" aria-label="Tìm từ">
+    <div class="row"><button class="btn" id="selall">Chọn tất cả đang hiện</button><button class="btn" id="sellapse">Chọn từ hay quên</button><button class="btn" id="selnone">Bỏ chọn</button></div>
+    <div class="row"><button class="btn pri" id="relNow">Ôn ngay</button><button class="btn" id="relReset">Học lại từ đầu</button><span class="note" id="selcount"></span></div>
+    <p class="note" id="selmsg" role="status">“Ôn ngay” đưa các từ đã chọn vào lượt học ngay, giữ nguyên tiến độ. “Học lại từ đầu” xóa tiến độ của chúng rồi học như từ mới.</p>
+    <ul class="list" id="list" style="margin-top:10px"></ul></div>
 </section>
 
 <section id="stats" hidden></section>
@@ -269,17 +278,48 @@ function wavBlob(pcm,rate){
   new Int16Array(b,44).set(d); return new Blob([b],{type:'audio/wav'});
 }
 function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
-async function saveRec(c){
-  if(!recBlob)return;
-  const name=(norm(c.w).replace(/\s+/g,'-').slice(0,40)||'ghi-am')+'-'+today();
-  saveNote='Đang chuyển sang MP3…'; render();
+function resample(p,from,to){
+  if(from===to)return p;
+  const n=Math.round(p.length*to/from), o=new Float32Array(n);
+  for(let i=0;i<n;i++){const x=i*from/to, a=Math.floor(x), f=x-a;o[i]=p[a]*(1-f)+(p[Math.min(a+1,p.length-1)])*f;}
+  return o;
+}
+async function modelAudio(c){
+  if((S.cfg.ttsUrl||'').trim()){ // máy chủ đọc mẫu tự chọn (chuẩn OpenAI /audio/speech)
+    const r=await fetch(S.cfg.ttsUrl.trim().replace(/\/+$/,'')+'/audio/speech',{method:'POST',headers:{'Content-Type':'application/json',...(S.cfg.ttsKey?{Authorization:'Bearer '+S.cfg.ttsKey}:{})},body:JSON.stringify({model:S.cfg.ttsModel||'tts-1',input:c.w,voice:S.cfg.ttsVoice||'alloy',response_format:'mp3'})});
+    if(r.ok)return toPcm(await r.blob());
+  }
+  if(S.cfg.lang.startsWith('en')&&toks(c.w).length===1){ // âm thanh từ điển, chỉ từ đơn tiếng Anh
+    const j=await (await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(c.w))).json();
+    const au=[].concat(...j.map(e=>(e.phonetics||[]).map(p=>p.audio))).filter(Boolean).map(u=>u.startsWith('//')?'https:'+u:u);
+    const u=au.find(x=>x.includes(S.cfg.lang==='en-GB'?'-uk':'-us'))||au[0];
+    if(u)return toPcm(await (await fetch(u)).blob());
+  }
+  return null;
+}
+async function exportPcm(pcm,rate,name){
   let out,ext;
-  try{
-    const {pcm,rate}=await toPcm(recBlob);
-    try{await loadLame();out=mp3Blob(pcm,rate);ext='mp3';}catch(e){out=wavBlob(pcm,rate);ext='wav';}
-  }catch(e){out=recBlob;ext=/mp4/.test(recBlob.type)?'m4a':'webm';}
+  try{await loadLame();out=mp3Blob(pcm,rate);ext='mp3';}catch(e){out=wavBlob(pcm,rate);ext='wav';}
   dl(out,name+'.'+ext);
-  saveNote=ext==='mp3'?'Đã lưu file MP3.':ext==='wav'?'Chưa tải được bộ mã hóa MP3 (cần mạng), nên đã lưu dạng WAV.':'Không chuyển đổi được, đã lưu định dạng gốc của trình duyệt (.'+ext+').';
+  saveNote=ext==='mp3'?'Đã lưu file MP3.':'Chưa tải được bộ mã hóa MP3 (cần mạng), nên đã lưu dạng WAV.';
+}
+async function saveRec(c,both){
+  if(!recBlob)return;
+  const name=(norm(c.w).replace(/\s+/g,'-').slice(0,40)||'ghi-am')+(both?'-mau-va-ban-':'-')+today();
+  saveNote=both?'Đang ghép giọng mẫu và giọng bạn…':'Đang chuyển sang MP3…'; render();
+  try{
+    const u=await toPcm(recBlob); let pcm=u.pcm;
+    if(both){
+      let m=null; try{m=await modelAudio(c);}catch(e){}
+      if(!m){saveNote='Không lấy được âm thanh đọc mẫu: giọng có sẵn của trình duyệt không thể ghi lại. Hãy thêm máy chủ đọc mẫu ở phần Cài đặt, hoặc dùng từ tiếng Anh đơn lẻ có âm thanh trong từ điển. Nút “Lưu giọng bạn” vẫn dùng được.';return render();}
+      const mp=resample(m.pcm,m.rate,u.rate), gap=new Float32Array(Math.round(u.rate*.8));
+      pcm=new Float32Array(mp.length+gap.length+u.pcm.length); pcm.set(mp); pcm.set(gap,mp.length); pcm.set(u.pcm,mp.length+gap.length);
+    }
+    await exportPcm(pcm,u.rate,name);
+  }catch(e){
+    if(both)saveNote='Không ghép được âm thanh.';
+    else{dl(recBlob,name+'.'+(/mp4/.test(recBlob.type)?'m4a':'webm'));saveNote='Không chuyển đổi được, đã lưu định dạng gốc của trình duyệt.';}
+  }
   render();
 }
 async function listen(){
@@ -325,7 +365,7 @@ function render(){
       <p class="note">Máy nghe được: “${esc(result.heard)}”${result.conf?` (độ tin cậy ${Math.round(result.conf*100)}%)`:''}</p>`;
     }
   }
-  if(recUrl)h+=`<div class="row"><button class="btn" id="playme">Nghe lại giọng bạn</button><button class="btn" id="cmp">Nghe mẫu rồi nghe bạn</button><button class="btn" id="savemp3">Lưu file MP3</button></div><p class="note" role="status">${saveNote?esc(saveNote):'Bản ghi chỉ nằm trong trình duyệt của bạn và mất khi sang thẻ khác. Muốn giữ lại thì bấm Lưu file MP3.'}</p>`;
+  if(recUrl)h+=`<div class="row"><button class="btn" id="playme">Nghe lại giọng bạn</button><button class="btn" id="cmp">Nghe mẫu rồi nghe bạn</button><button class="btn" id="savemp3">Lưu giọng bạn (MP3)</button><button class="btn" id="saveboth">Lưu mẫu + giọng bạn</button></div><p class="note" role="status">${saveNote?esc(saveNote):'Bản ghi chỉ nằm trong trình duyệt của bạn và mất khi sang thẻ khác. Muốn giữ lại thì bấm Lưu giọng bạn hoặc Lưu mẫu + giọng bạn.'}</p>`;
   if(flipped){
     h+=`<div class="meaning">${c.m?`<p><strong>${esc(c.m)}</strong></p>`:'<p class="note">Chưa có nghĩa. Vào “Bộ từ” để tự điền hoặc sửa.</p>'}${c.ex?`<p class="ex">${esc(c.ex)}</p>`:''}${c.exm?`<p class="ex" style="font-style:normal">${esc(c.exm)}</p>`:''}${c.ex?'<p><button class="btn" id="sayex">Nghe câu ví dụ</button></p>':''}</div>`;
   }
@@ -342,7 +382,8 @@ function render(){
   const se=$('#sayex'); if(se)se.onclick=()=>speak(c.ex);
   const pm=$('#playme'); if(pm)pm.onclick=()=>new Audio(recUrl).play();
   const cp=$('#cmp'); if(cp)cp.onclick=()=>speak(c.w,()=>new Audio(recUrl).play());
-  const sv=$('#savemp3'); if(sv)sv.onclick=()=>saveRec(c);
+  const sv=$('#savemp3'); if(sv)sv.onclick=()=>saveRec(c,false);
+  const sb=$('#saveboth'); if(sb)sb.onclick=()=>saveRec(c,true);
   const f=$('#flip'); if(f)f.onclick=flip;
   el.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>rate(+b.dataset.q));
 }
@@ -453,14 +494,18 @@ async function fillMissing(list){
 }
 
 /* ---- Bộ từ ---- */
+const sel=new Set(), qq=()=>norm($('#q').value||'');
+const updSel=()=>{$('#selcount').textContent=sel.size?sel.size+' từ đã chọn':'';};
 function renderDeck(){
   $('#lang').value=S.cfg.lang; $('#npd').value=S.cfg.npd; $('#ret').value=Math.round((S.cfg.ret||.9)*100); $('#auto').value=S.cfg.auto||0; $('#tUrl').value=S.cfg.tUrl||''; $('#tKey').value=S.cfg.tKey||'';
-  $('#aiBase').value=S.cfg.aiBase||''; $('#aiModel').value=S.cfg.aiModel||''; $('#aiKey').value=S.cfg.aiKey||'';
+  $('#aiBase').value=S.cfg.aiBase||''; $('#aiModel').value=S.cfg.aiModel||''; $('#aiKey').value=S.cfg.aiKey||''; ['ttsUrl','ttsVoice','ttsModel','ttsKey'].forEach(k=>$('#'+k).value=S.cfg[k]||'');
   $('#aiP').value=[...$('#aiP').options].some(o=>o.value&&o.value===S.cfg.aiBase)?S.cfg.aiBase:(S.cfg.aiBase?'custom':'');
   $('#dtitle').textContent=`Danh sách từ (${S.cards.length})`;
-  $('#list').innerHTML=S.cards.map(c=>`<li><div><strong>${esc(c.w)}</strong> <span>${esc(c.m)}</span></div><div style="display:flex;gap:6px"><button class="btn" data-edit="${c.id}" aria-label="Sửa nghĩa ${esc(c.w)}">Sửa</button><button class="btn" data-del="${c.id}" aria-label="Xóa ${esc(c.w)}">Xóa</button></div></li>`).join('')||'<li><span>Trống</span></li>';
+  $('#list').innerHTML=S.cards.filter(c=>!qq()||norm(c.w+' '+c.m).includes(qq())).map(c=>`<li><label style="display:flex;gap:10px;align-items:center;flex:1;margin:0;font-size:15px;color:var(--ink)"><input type="checkbox" data-sel="${c.id}" ${sel.has(c.id)?'checked':''} style="width:auto"><div><strong>${esc(c.w)}</strong> <span>${esc(c.m)}</span></div></label><div style="display:flex;gap:6px"><button class="btn" data-edit="${c.id}" aria-label="Sửa nghĩa ${esc(c.w)}">Sửa</button><button class="btn" data-del="${c.id}" aria-label="Xóa ${esc(c.w)}">Xóa</button></div></li>`).join('')||'<li><span>Trống</span></li>';
   $('#list').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{S.cards=S.cards.filter(c=>c.id!==b.dataset.del);save();buildQueue();renderDeck();});
   $('#list').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const c=S.cards.find(x=>x.id===b.dataset.edit);const v=prompt('Nghĩa của “'+c.w+'”:',c.m);if(v===null)return;c.m=v.trim();const e=prompt('Câu ví dụ (để trống nếu không cần):',c.ex||'');if(e!==null&&e.trim()!==(c.ex||'')){c.ex=e.trim();c.exsrc='user';c.exm='';}save();renderDeck();if(c.ex&&!c.exm)fillMissing([c]);});
+  $('#list').querySelectorAll('[data-sel]').forEach(b=>b.onchange=()=>{b.checked?sel.add(b.dataset.sel):sel.delete(b.dataset.sel);updSel();});
+  updSel();
 }
 $('#lang').onchange=e=>{S.cfg.lang=e.target.value;save();};
 $('#npd').onchange=e=>{S.cfg.npd=Math.max(0,+e.target.value||0);save();buildQueue();};
@@ -472,7 +517,21 @@ $('#aiP').onchange=e=>{const v=e.target.value;if(v!=='custom')S.cfg.aiBase=v;$('
 $('#aiBase').onchange=e=>{S.cfg.aiBase=e.target.value.trim();save();};
 $('#aiModel').onchange=e=>{S.cfg.aiModel=e.target.value.trim();save();};
 $('#aiKey').onchange=e=>{S.cfg.aiKey=e.target.value.trim();save();};
+['ttsUrl','ttsVoice','ttsModel','ttsKey'].forEach(k=>{$('#'+k).onchange=e=>{S.cfg[k]=e.target.value.trim();save();};});
 $('#fill').onclick=()=>fillMissing();
+$('#q').oninput=renderDeck;
+$('#selall').onclick=()=>{S.cards.filter(c=>!qq()||norm(c.w+' '+c.m).includes(qq())).forEach(c=>sel.add(c.id));renderDeck();};
+$('#sellapse').onclick=()=>{S.cards.filter(c=>c.lapses>0).forEach(c=>sel.add(c.id));renderDeck();$('#selmsg').textContent=sel.size?'Đã chọn các từ bạn từng quên.':'Chưa có từ nào bị quên.';};
+$('#selnone').onclick=()=>{sel.clear();renderDeck();};
+const queueNow=reset=>{
+  const p=S.cards.filter(c=>sel.has(c.id));
+  if(!p.length){$('#selmsg').textContent='Bạn chưa chọn từ nào.';return;}
+  p.forEach(c=>{c.seen=true;c.due=Date.now();if(reset||!c.s){c.s=0;c.d=0;c.reps=0;c.int=0;c.last=0;}});
+  save();sel.clear();buildQueue();renderDeck();
+  $('#selmsg').textContent='Đã đưa '+p.length+' từ vào lượt học. Mở tab Học để bắt đầu.';
+};
+$('#relNow').onclick=()=>queueNow(false);
+$('#relReset').onclick=()=>{if(confirm('Xóa tiến độ của các từ đã chọn và học lại từ đầu?'))queueNow(true);};
 $('#add').onclick=()=>{
   const items=parse($('#bulk').value), n=addCards(items), list=added;
   $('#addmsg').textContent=items.length?`Đã thêm ${n} từ mới${items.length-n?`, bỏ qua ${items.length-n} từ trùng`:''}.`:'Hãy nhập ít nhất một từ mỗi dòng.';
@@ -480,7 +539,7 @@ $('#add').onclick=()=>{
 };
 $('#sample').onclick=()=>{const n=addCards(parse(SAMPLE));$('#addmsg').textContent=`Đã thêm ${n} từ mẫu.`;buildQueue();renderDeck();fillMissing(added);};
 $('#exp').onclick=()=>{
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...S,cfg:{...S.cfg,tKey:'',aiKey:''}},null,1)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...S,cfg:{...S.cfg,tKey:'',aiKey:'',ttsKey:''}},null,1)],{type:'application/json'}));
   a.download='flashcards-'+today()+'.json';a.click();URL.revokeObjectURL(a.href);
 };
 $('#impbtn').onclick=()=>$('#imp').click();
