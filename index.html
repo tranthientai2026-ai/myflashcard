@@ -10,10 +10,10 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:640px;margin:0 auto;padding:16px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 h1{font:700 20px Georgia,serif;margin:0}
 nav{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px}
-nav button{border:0;background:none;color:var(--mute);padding:6px 14px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer}
+nav button{border:0;background:none;color:var(--mute);padding:6px 12px;border-radius:999px;font:inherit;font-size:14px;cursor:pointer}
 nav button[aria-selected=true]{background:var(--acc);color:var(--acc-ink)}
 button{font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
@@ -56,6 +56,8 @@ ul.list span{color:var(--mute)}
 .stat{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat div{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
 .stat b{display:block;font:700 24px Georgia,serif}
+.sec{margin:8px 0 0;font-size:15px}.sec b{color:var(--mute);font-weight:600;margin-right:6px}
+mark{background:color-mix(in srgb,var(--acc) 22%,transparent);color:inherit;border-radius:4px;padding:0 2px}
 .empty{text-align:center;padding:36px 8px}
 .empty h2{font:700 24px Georgia,serif;margin:0 0 8px}
 [hidden]{display:none!important}
@@ -70,6 +72,7 @@ ul.list span{color:var(--mute)}
     <button role="tab" data-v="study" aria-selected="true">Học</button>
     <button role="tab" data-v="deck" aria-selected="false">Bộ từ</button>
     <button role="tab" data-v="stats" aria-selected="false">Thống kê</button>
+    <button role="tab" data-v="mix" aria-selected="false">Tổng hợp</button>
   </nav>
 </header>
 
@@ -89,6 +92,7 @@ ul.list span{color:var(--mute)}
       <div><label for="npd">Từ mới mỗi ngày</label><input id="npd" type="number" min="0" max="200"></div>
       <div><label for="ret">Mức nhớ mục tiêu (%)</label><input id="ret" type="number" min="70" max="97"></div>
       <div><label for="auto">Tự động phát âm</label><select id="auto"><option value="0">Tắt</option><option value="1">Đọc từ khi hiện thẻ</option><option value="2">Đọc từ, rồi đọc câu ví dụ khi lật</option></select></div>
+      <div style="grid-column:1/-1"><label>Phần hiển thị ở mặt sau thẻ</label><div class="row" style="margin-top:4px"><label style="display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" id="sh_pos" style="width:auto">Từ loại</label><label style="display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" id="sh_col" style="width:auto">Cụm hay đi kèm</label><label style="display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" id="sh_syn" style="width:auto">Đồng/trái nghĩa</label><label style="display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" id="sh_tip" style="width:auto">Mẹo nhớ</label><label style="display:inline-flex;gap:6px;align-items:center;margin:0;color:var(--ink)"><input type="checkbox" id="sh_note" style="width:auto">Ghi chú</label></div></div>
       <div><label for="both">Ghi âm cùng lúc khi chấm điểm</label><select id="both"><option value="0">Tắt (khuyên dùng trên điện thoại)</option><option value="1">Bật (thử trên máy tính)</option></select></div>
       <div><label for="tUrl">Máy chủ dịch LibreTranslate (tùy chọn)</label><input id="tUrl" placeholder="https://libretranslate.example.com"></div>
       <div><label for="tKey">Khóa API dịch (tùy chọn)</label><input id="tKey" type="password" autocomplete="off"></div>
@@ -106,7 +110,7 @@ ul.list span{color:var(--mute)}
     <h2>Thêm từ</h2>
     <label for="bulk">Mỗi dòng một từ hoặc cụm từ. Chỉ cần gõ từ, nghĩa, phiên âm, ví dụ và bản dịch ví dụ sẽ tự điền. Muốn tự nhập thì viết: từ | nghĩa | phiên âm | ví dụ</label>
     <textarea id="bulk" placeholder="serendipity&#10;resilient&#10;I would like a cup of coffee"></textarea>
-    <p class="note">Ví dụ được lấy ưu tiên từ các câu và mẫu câu bạn đã thêm. Có thể viết mẫu câu với ___ (vd: I would like a ___ | Tôi muốn một ___), app sẽ điền từ mới vào đó khi chưa có câu nào phù hợp. Nếu bật mô hình AI ở phần Cài đặt, AI sẽ viết câu mới chủ yếu từ các từ và mẫu câu bạn đã thêm, thay cho mẫu câu và từ điển.</p>
+    <p class="note">Ví dụ được lấy ưu tiên từ các câu và mẫu câu bạn đã thêm. Có thể viết mẫu câu với ___ (vd: I would like a ___ | Tôi muốn một ___), app sẽ điền từ mới vào đó khi chưa có câu nào phù hợp. Nếu bật mô hình AI ở phần Cài đặt, AI sẽ viết câu mới chủ yếu từ các từ và mẫu câu bạn đã thêm, thay cho mẫu câu và từ điển. AI cũng tự sinh các phần riêng: từ loại, cụm hay đi kèm, đồng/trái nghĩa, mẹo nhớ và ghi chú.</p>
     <div class="row">
       <button class="btn pri" id="add">Thêm vào bộ từ</button>
       <button class="btn" id="sample">Nạp từ mẫu</button>
@@ -132,6 +136,7 @@ ul.list span{color:var(--mute)}
 </section>
 
 <section id="stats" hidden></section>
+<section id="mix" hidden></section>
 </div>
 
 <script>
@@ -202,7 +207,7 @@ function sched(c,q){
 const fmt=(c,q)=>{ if(q===1)return '10 phút'; const d=sched(c,q).int; return d<30?d+' ngày':d<365?Math.round(d/30)+' tháng':(d/365).toFixed(1)+' năm'; };
 
 /* ---- Hàng đợi ---- */
-let queue=[], flipped=false, result=null, rec=null, say1=true;
+let queue=[], flipped=false, result=null, resultEx=null, rwhich='w', recFor='w', rec=null, say1=true;
 function buildQueue(){
   const now=Date.now(), due=S.cards.filter(c=>c.seen&&c.due<=now).sort((a,b)=>a.due-b.due);
   const left=Math.max(0,S.cfg.npd-logToday().n);
@@ -326,24 +331,31 @@ async function saveRec(c,both){
 async function recordOnly(){
   if(starting||rec)return;
   if(mr&&mr.state==='recording'){stopRec();return render();}
-  starting=true; const ok=await startRec(); starting=false;
+  recFor='w'; starting=true; const ok=await startRec(); starting=false;
   if(!ok)result={err:'Không mở được micro. Hãy cấp quyền micro cho trang này.'};
   render();
 }
-async function listen(){
+async function listen(which){
+  which=which==='ex'?'ex':'w';
   const c=cur(); if(!c||starting)return;
+  const txt=which==='ex'?c.ex:c.w; if(!txt)return;
+  const set=v=>{if(which==='ex')resultEx=v;else result=v;}, get=()=>which==='ex'?resultEx:result;
   if(rec){rec.stop();return;}
-  if(!SR){result={err:'Trình duyệt này không hỗ trợ chấm điểm tự động. Bạn vẫn dùng được nút Ghi âm để tự nghe lại. Hãy dùng Chrome, Edge hoặc Safari để có điểm.'};return render();}
-  result=null;
-  if(S.cfg.both){starting=true;render();await startRec();starting=false;}
-  rec=new SR(); rec.lang=S.cfg.lang; rec.maxAlternatives=5; rec.interimResults=false;
-  rec.onresult=e=>{result=score(c.w,[...e.results[0]].map(a=>({t:a.transcript,c:a.confidence})));};
-  rec.onerror=e=>{result={err:({'not-allowed':'Bạn chưa cấp quyền micro cho trang này.','no-speech':'Không nghe thấy giọng nói. Thử nói to và gần micro hơn.','network':'Lỗi mạng khi nhận dạng giọng nói.','audio-capture':'Không dùng được micro (có thể đang bị ghi âm chiếm). Hãy tắt “Ghi âm cùng lúc khi chấm điểm” trong Cài đặt.','service-not-allowed':'Trình duyệt không cho dùng nhận dạng giọng nói trên trang này.','language-not-supported':'Trình duyệt chưa hỗ trợ nhận dạng cho ngôn ngữ này.','aborted':'Đã dừng.'})[e.error]||'Lỗi nhận dạng: '+e.error};};
-  rec.onend=()=>{rec=null;stopRec();if(!result)result={err:'Chưa nhận được kết quả. Hãy bấm Nói thử rồi nói ngay, gần micro. Nếu bạn đã bật ghi âm cùng lúc trong Cài đặt thì hãy tắt đi, vì nhiều điện thoại không cho làm cả hai việc cùng lúc.'};render();};
+  if(!SR){set({err:'Trình duyệt này không hỗ trợ chấm điểm tự động. Bạn vẫn dùng được nút Ghi âm để tự nghe lại. Hãy dùng Chrome, Edge hoặc Safari để có điểm.'});return render();}
+  set(null);
+  if(S.cfg.both){recFor=which;starting=true;render();await startRec();starting=false;}
+  rec=new SR(); rwhich=which; rec.lang=S.cfg.lang; rec.maxAlternatives=5; rec.interimResults=false;
+  rec.onresult=e=>{set(score(txt,[...e.results[0]].map(a=>({t:a.transcript,c:a.confidence}))));};
+  rec.onerror=e=>{set({err:({'not-allowed':'Bạn chưa cấp quyền micro cho trang này.','no-speech':'Không nghe thấy giọng nói. Thử nói to và gần micro hơn.','network':'Lỗi mạng khi nhận dạng giọng nói.','audio-capture':'Không dùng được micro (có thể đang bị ghi âm chiếm). Hãy tắt “Ghi âm cùng lúc khi chấm điểm” trong Cài đặt.','service-not-allowed':'Trình duyệt không cho dùng nhận dạng giọng nói trên trang này.','language-not-supported':'Trình duyệt chưa hỗ trợ nhận dạng cho ngôn ngữ này.','aborted':'Đã dừng.'})[e.error]||'Lỗi nhận dạng: '+e.error});};
+  rec.onend=()=>{rec=null;stopRec();if(!get())set({err:'Chưa nhận được kết quả. Hãy bấm nút chấm điểm rồi nói ngay, gần micro. Nếu bạn đã bật ghi âm cùng lúc trong Cài đặt thì hãy tắt đi, vì nhiều điện thoại không cho làm cả hai việc cùng lúc.'});render();};
   try{rec.start();}catch(e){rec=null;stopRec();} render();
 }
 
 /* ---- Hiển thị ---- */
+const resHtml=r=>!r?'':r.err?`<p class="note" role="alert" style="color:var(--bad)">${esc(r.err)}</p>`:`<div class="score" role="status"><strong class="${r.pct>=85?'g':r.pct>=60?'o':'b'}" style="border:0">${r.pct}</strong><span>${r.pct>=85?'Rất tốt':r.pct>=60?'Gần đúng, nghe lại và thử thêm lần nữa':'Chưa khớp, nghe mẫu rồi nói lại'}</span></div>
+      <div class="chips">${r.words.map(w=>`<span class="chip ${w.s>=.85?'g':w.s>=.6?'o':'b'}">${esc(w.w)}</span>`).join('')}</div>
+      <p class="note">Máy nghe được: “${esc(r.heard)}”${r.conf?` (độ tin cậy ${Math.round(r.conf*100)}%)`:''}</p>`;
+const tc=c=>recFor==='ex'&&c.ex?{...c,w:c.ex}:c;
 function render(){
   const el=$('#study'), c=cur(), now=Date.now();
   if(!S.cards.length){
@@ -359,25 +371,17 @@ function render(){
   let h=`<div class="counts"><span>Mới <b>${newN}</b></span><span>Ôn lại <b>${dueN}</b></span></div>
   <div class="card"><p class="word" lang="${S.cfg.lang}">${esc(c.w)}</p>${c.ipa?`<p class="ipa">${esc(c.ipa)}</p>`:''}
   <div class="row"><button class="btn" id="say" aria-label="Nghe phát âm">Nghe</button>
-  <button class="btn ${rec?'rec':'pri'}" id="mic">${rec?'Đang nghe… bấm để dừng':'Nói thử (chấm điểm)'}</button>
+  <button class="btn ${rec&&rwhich==='w'?'rec':'pri'}" id="mic">${rec&&rwhich==='w'?'Đang nghe… bấm để dừng':'Nói thử (chấm điểm)'}</button>
   <button class="btn ${mr&&mr.state==='recording'&&!rec?'rec':''}" id="recbtn" ${rec?'disabled':''}>${mr&&mr.state==='recording'&&!rec?'Đang ghi… bấm để dừng':'Ghi âm'}</button></div>`;
-  if(result){
-    if(result.err)h+=`<p class="note" role="alert" style="color:var(--bad)">${esc(result.err)}</p>`;
-    else{
-      const cl=result.pct>=85?'g':result.pct>=60?'o':'b';
-      h+=`<div class="score" role="status"><strong class="${cl}" style="border:0">${result.pct}</strong><span>${result.pct>=85?'Rất tốt':result.pct>=60?'Gần đúng, nghe lại và thử thêm lần nữa':'Chưa khớp, nghe mẫu rồi nói lại'}</span></div>
-      <div class="chips">${result.words.map(w=>`<span class="chip ${w.s>=.85?'g':w.s>=.6?'o':'b'}">${esc(w.w)}</span>`).join('')}</div>
-      <p class="note">Máy nghe được: “${esc(result.heard)}”${result.conf?` (độ tin cậy ${Math.round(result.conf*100)}%)`:''}</p>`;
-    }
-  }
+  h+=resHtml(result);
   if(recUrl)h+=`<div class="row"><button class="btn" id="playme">Nghe lại giọng bạn</button><button class="btn" id="cmp">Nghe mẫu rồi nghe bạn</button><button class="btn" id="savemp3">Lưu giọng bạn (MP3)</button><button class="btn" id="saveboth">Lưu mẫu + giọng bạn</button></div><p class="note" role="status">${saveNote?esc(saveNote):'Bản ghi chỉ nằm trong trình duyệt của bạn và mất khi sang thẻ khác. Muốn giữ lại thì bấm Lưu giọng bạn hoặc Lưu mẫu + giọng bạn.'}</p>`;
   if(flipped){
-    h+=`<div class="meaning">${c.m?`<p><strong>${esc(c.m)}</strong></p>`:'<p class="note">Chưa có nghĩa. Vào “Bộ từ” để tự điền hoặc sửa.</p>'}${c.ex?`<p class="ex">${esc(c.ex)}</p>`:''}${c.exm?`<p class="ex" style="font-style:normal">${esc(c.exm)}</p>`:''}${c.ex?'<p><button class="btn" id="sayex">Nghe câu ví dụ</button></p>':''}</div>`;
+    h+=`<div class="meaning">${c.m?`<p><strong>${esc(c.m)}</strong></p>`:'<p class="note">Chưa có nghĩa. Vào “Bộ từ” để tự điền hoặc sửa.</p>'}${c.ex?`<p class="ex">${esc(c.ex)}</p>`:''}${c.exm?`<p class="ex" style="font-style:normal">${esc(c.exm)}</p>`:''}${c.ex?`<div class="row" style="margin-top:8px"><button class="btn" id="sayex">Nghe câu ví dụ</button><button class="btn ${rec&&rwhich==='ex'?'rec':'pri'}" id="micex">${rec&&rwhich==='ex'?'Đang nghe… bấm để dừng':'Đọc câu ví dụ (chấm điểm)'}</button></div>${resHtml(resultEx)}`:''}${SEC.map(([k,l])=>c[k]&&showOn(k)?`<p class="sec"><b>${l}</b>${esc(c[k])}</p>`:'').join('')}</div>`;
   }
   h+='</div>';
   if(!flipped)h+=`<div class="row"><button class="btn pri" id="flip" style="flex:1">Hiện nghĩa (Space)</button></div>`;
   else{
-    const hint=result&&!result.err?(result.pct>=85?3:result.pct>=60?2:1):0;
+    const rs=[result,resultEx].filter(r=>r&&!r.err), avg=rs.length?rs.reduce((a,r)=>a+r.pct,0)/rs.length:-1, hint=avg<0?0:avg>=85?3:avg>=60?2:1;
     h+=`<div class="rate">${[[1,'Lại'],[2,'Khó'],[3,'Tốt'],[4,'Dễ']].map(([q,l])=>`<button class="r${q} ${hint===q?'hint':''}" data-q="${q}">${l}<small>${fmt(c,q)}</small></button>`).join('')}</div>
     ${hint?'<p class="note">Ô nền xám là gợi ý dựa trên điểm phát âm. Bạn vẫn là người quyết định.</p>':''}`;
   }
@@ -385,10 +389,11 @@ function render(){
   if(say1){say1=false;if(S.cfg.auto>=1)speak(c.w);}
   $('#say').onclick=()=>speak(c.w); $('#mic').onclick=listen; $('#recbtn').onclick=recordOnly;
   const se=$('#sayex'); if(se)se.onclick=()=>speak(c.ex);
+  const me=$('#micex'); if(me)me.onclick=()=>listen('ex');
   const pm=$('#playme'); if(pm)pm.onclick=()=>new Audio(recUrl).play();
-  const cp=$('#cmp'); if(cp)cp.onclick=()=>speak(c.w,()=>new Audio(recUrl).play());
-  const sv=$('#savemp3'); if(sv)sv.onclick=()=>saveRec(c,false);
-  const sb=$('#saveboth'); if(sb)sb.onclick=()=>saveRec(c,true);
+  const cp=$('#cmp'); if(cp)cp.onclick=()=>speak(tc(c).w,()=>new Audio(recUrl).play());
+  const sv=$('#savemp3'); if(sv)sv.onclick=()=>saveRec(tc(c),false);
+  const sb=$('#saveboth'); if(sb)sb.onclick=()=>saveRec(tc(c),true);
   const f=$('#flip'); if(f)f.onclick=flip;
   el.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>rate(+b.dataset.q));
 }
@@ -398,7 +403,7 @@ function rate(q){
   const L=logToday(); if(!c.seen)L.n++; L.r++;
   const i=S.cards.indexOf(c); S.cards[i]=sched(c,q);
   queue.shift(); if(q===1)queue.push(c.id);
-  flipped=false;result=null;say1=true;clearRec();save();render();
+  flipped=false;result=null;resultEx=null;say1=true;clearRec();save();render();
 }
 addEventListener('keydown',e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||$('#study').hidden)return;
@@ -436,6 +441,8 @@ function fromDeck(c,noPat){
   cand.sort((a,b)=>(a.p||0)-(b.p||0)||cov(b.ex)-cov(a.ex)||a.ex.length-b.ex.length);
   return cand[0]||null;
 }
+const SEC=[['pos','Từ loại'],['col','Cụm hay đi kèm'],['syn','Đồng/trái nghĩa'],['tip','Mẹo nhớ'],['note','Ghi chú']];
+const showOn=k=>(S.cfg.show||{})[k]!==0;
 const aiOn=()=>!!((S.cfg.aiBase||'').trim()&&(S.cfg.aiModel||'').trim());
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const LN={en:'English',fr:'French',de:'German',es:'Spanish',ja:'Japanese',ko:'Korean',zh:'Chinese'};
@@ -446,6 +453,7 @@ async function llm(prompt,retry=1){
   if(!r.ok)throw new Error('AI '+r.status);
   return (await r.json()).choices[0].message.content;
 }
+const secMiss=c=>!c.secTried;
 async function aiFill(c){
   const L=LN[S.cfg.lang.split('-')[0]]||S.cfg.lang;
   const others=S.cards.filter(x=>x!==c&&!isPat(x)&&!isSent(x)).sort((a,b)=>(b.seen?1:0)-(a.seen?1:0)).slice(0,40).map(x=>x.w);
@@ -455,10 +463,14 @@ Target word: "${c.w}"${c.m?`\nIntended Vietnamese meaning: "${c.m}"`:''}
 Words the learner already knows: ${others.join(', ')||'(none yet)'}
 Sentence patterns the learner already knows: ${pats.join(' / ')||'(none yet)'}
 Write ONE short, natural example sentence in ${L} that uses the target word. Build it mostly from the known words and patterns above; add only very common words if needed.
-Reply with ONLY a JSON object, no markdown: {"m":"short Vietnamese meaning, max 8 words","ex":"the example sentence","exm":"Vietnamese translation of the sentence"}`;
+Reply with ONLY a JSON object, no markdown:
+{"m":"short Vietnamese meaning, max 8 words","ex":"the example sentence","exm":"Vietnamese translation of the sentence","pos":"part of speech, e.g. n. / v. / adj.","col":"3 common collocations in ${L}, separated by ' ; '","syn":"up to 4 synonyms in ${L}; if any, add ' | ant: ' and up to 2 antonyms","tip":"one short memory tip in Vietnamese","note":"one short usage note in Vietnamese (register, common mistakes)"}`;
   const j=JSON.parse((await llm(p)).match(/\{[\s\S]*\}/)[0]);
-  if(!c.m&&j.m)c.m=String(j.m).trim();
-  if((!c.ex||c.exsrc==='dict')&&j.ex){c.ex=String(j.ex).trim();c.exm=String(j.exm||'').trim();c.exsrc='ai';}
+  const str=v=>Array.isArray(v)?v.join(' ; '):String(v||'').trim();
+  if(!c.m&&j.m)c.m=str(j.m);
+  if((!c.ex||c.exsrc==='dict')&&j.ex){c.ex=str(j.ex);c.exm=str(j.exm);c.exsrc='ai';}
+  ['pos','col','syn','tip','note'].forEach(k=>{if(!c[k]&&j[k])c[k]=str(j[k]);});
+  c.secTried=1;
 }
 async function enrich(c){
   let ok=true; const ai=aiOn();
@@ -466,17 +478,19 @@ async function enrich(c){
   if(isSent(c)){ try{ if(!c.m)c.m=await tr(c.w); }catch(x){ok=false;} return ok; }
   if(!ai){ try{ if(!c.m)c.m=await tr(c.w); }catch(x){ok=false;} }
   if(!c.ex||c.exsrc==='dict'){const d=fromDeck(c,ai); if(d){c.ex=d.ex;c.exm=d.exm;c.exsrc='deck';}}
-  if(S.cfg.lang.startsWith('en')&&(!c.ipa||(!c.ex&&!ai))){
+  if(S.cfg.lang.startsWith('en')&&(!c.ipa||!c.pos||(!c.ex&&!ai))){
     try{
       const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(c.w));
       if(r.ok){
         const e=(await r.json())[0]||{};
         if(!c.ipa)c.ipa=e.phonetic||((e.phonetics||[]).find(p=>p.text)||{}).text||'';
+        if(!c.pos&&e.meanings&&e.meanings[0])c.pos=e.meanings[0].partOfSpeech||'';
+        if(!c.syn){const sy=[].concat(...(e.meanings||[]).map(m=>m.synonyms||[])).slice(0,5);if(sy.length)c.syn=sy.join(', ');}
         if(!c.ex&&!ai){c.ex=((e.meanings||[]).flatMap(m=>m.definitions||[]).find(d=>d.example)||{}).example||'';if(c.ex){c.exsrc='dict';c.exm='';}}
       }
     }catch(x){}
   }
-  if(ai&&(!c.m||!c.ex||c.exsrc==='dict')){ try{ await aiFill(c); }catch(x){ok=false;} }
+  if(ai&&(!c.m||!c.ex||c.exsrc==='dict'||secMiss(c))){ try{ await aiFill(c); }catch(x){ok=false;} }
   c.tried=1;
   try{ if(!c.m)c.m=await tr(c.w); }catch(x){ok=false;}
   if(!c.ex){const d=fromDeck(c); if(d){c.ex=d.ex;c.exm=d.exm;c.exsrc='deck';}}
@@ -484,7 +498,7 @@ async function enrich(c){
   return ok;
 }
 async function fillMissing(list){
-  const msg=$('#addmsg'), todo=(list||S.cards).filter(c=>!isPat(c)&&(!c.m||(!isSent(c)&&((c.ex&&!c.exm)||(!c.ex&&!c.tried)||c.exsrc==='dict'||(aiOn()&&!c.ex)||(!c.ex&&fromDeck(c))))));
+  const msg=$('#addmsg'), todo=(list||S.cards).filter(c=>!isPat(c)&&(!c.m||(!isSent(c)&&((c.ex&&!c.exm)||(!c.ex&&!c.tried)||c.exsrc==='dict'||(aiOn()&&(!c.ex||secMiss(c)))||(!c.ex&&fromDeck(c))))));
   let bad=0,changed=0;
   for(let i=0;i<todo.length;i++){
     msg.textContent='Đang tự điền '+(i+1)+'/'+todo.length+'…';
@@ -502,7 +516,7 @@ async function fillMissing(list){
 const sel=new Set(), qq=()=>norm($('#q').value||'');
 const updSel=()=>{$('#selcount').textContent=sel.size?sel.size+' từ đã chọn':'';};
 function renderDeck(){
-  $('#lang').value=S.cfg.lang; $('#npd').value=S.cfg.npd; $('#ret').value=Math.round((S.cfg.ret||.9)*100); $('#auto').value=S.cfg.auto||0; $('#both').value=S.cfg.both||0; $('#tUrl').value=S.cfg.tUrl||''; $('#tKey').value=S.cfg.tKey||'';
+  $('#lang').value=S.cfg.lang; $('#npd').value=S.cfg.npd; $('#ret').value=Math.round((S.cfg.ret||.9)*100); $('#auto').value=S.cfg.auto||0; $('#both').value=S.cfg.both||0; SEC.forEach(([k])=>$('#sh_'+k).checked=showOn(k)); $('#tUrl').value=S.cfg.tUrl||''; $('#tKey').value=S.cfg.tKey||'';
   $('#aiBase').value=S.cfg.aiBase||''; $('#aiModel').value=S.cfg.aiModel||''; $('#aiKey').value=S.cfg.aiKey||''; ['ttsUrl','ttsVoice','ttsModel','ttsKey'].forEach(k=>$('#'+k).value=S.cfg[k]||'');
   $('#aiP').value=[...$('#aiP').options].some(o=>o.value&&o.value===S.cfg.aiBase)?S.cfg.aiBase:(S.cfg.aiBase?'custom':'');
   $('#dtitle').textContent=`Danh sách từ (${S.cards.length})`;
@@ -517,6 +531,7 @@ $('#npd').onchange=e=>{S.cfg.npd=Math.max(0,+e.target.value||0);save();buildQueu
 $('#ret').onchange=e=>{S.cfg.ret=clamp((+e.target.value||90)/100,.7,.97);save();};
 $('#auto').onchange=e=>{S.cfg.auto=+e.target.value;save();};
 $('#both').onchange=e=>{S.cfg.both=+e.target.value;save();};
+SEC.forEach(([k])=>{$('#sh_'+k).onchange=e=>{S.cfg.show={...(S.cfg.show||{}),[k]:e.target.checked?1:0};save();};});
 $('#tUrl').onchange=e=>{S.cfg.tUrl=e.target.value.trim();save();};
 $('#tKey').onchange=e=>{S.cfg.tKey=e.target.value.trim();save();};
 $('#aiP').onchange=e=>{const v=e.target.value;if(v!=='custom')S.cfg.aiBase=v;$('#aiBase').value=S.cfg.aiBase||'';if(v==='custom')$('#aiBase').focus();save();};
@@ -573,13 +588,45 @@ function renderStats(){
     <div class="panel"><h2>Lượt ôn 7 ngày qua</h2><div class="bars">${days.map(d=>{const r=(S.log[d.k]||{}).r||0;return `<div><i style="height:${Math.round(r/max*60)}px"></i>${r}<br>${d.l}</div>`;}).join('')}</div></div>`;
 }
 
+/* ---- Tổng hợp ---- */
+const mixCards=()=>{const p=S.cards.filter(c=>sel.has(c.id));return p.length?p:S.cards.slice(-10);};
+const sheetText=list=>list.map(c=>[c.w+(c.ipa?' '+c.ipa:'')+(c.pos?' ('+c.pos+')':'')+' — '+(c.m||''),
+  c.ex?'  Ví dụ: '+c.ex+(c.exm?' → '+c.exm:''):'',...SEC.filter(([k])=>k!=='pos'&&c[k]).map(([k,l])=>'  '+l+': '+c[k])].filter(Boolean).join('\n')).join('\n\n');
+const mark=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<mark>$1</mark>');
+async function mixGo(list){
+  const L=LN[S.cfg.lang.split('-')[0]]||S.cfg.lang;
+  const p=`You are a ${L} teacher for a Vietnamese learner. Write ONE short coherent paragraph (4 to 6 simple sentences) in ${L} that uses ALL of these words: ${list.map(c=>c.w).join(', ')}. Wrap each target word, as it appears in the text, in **double asterisks**. Otherwise use very common words. Reply with ONLY a JSON object, no markdown: {"text":"the paragraph","vi":"Vietnamese translation of the paragraph"}`;
+  const j=JSON.parse((await llm(p)).match(/\{[\s\S]*\}/)[0]);
+  S.mix=[{ts:Date.now(),words:list.map(c=>c.w),text:String(j.text||''),vi:String(j.vi||'')},...(S.mix||[])].slice(0,10); save();
+}
+function renderMix(){
+  const list=mixCards(), m=(S.mix||[])[0];
+  $('#mix').innerHTML=`<div class="panel"><h2>Đoạn văn tổng hợp</h2>
+    <p class="note">Gộp ${list.length} từ ${sel.size?'đã chọn trong Bộ từ':'thêm gần nhất'} vào một đoạn văn để ôn trong ngữ cảnh. ${aiOn()?'':'Cần bật mô hình AI ở phần Cài đặt (tab Bộ từ).'}</p>
+    <div class="row"><button class="btn pri" id="mixgo" ${aiOn()&&list.length?'':'disabled'}>Tạo đoạn văn bằng AI</button></div>
+    <p class="note" id="mixmsg" role="status"></p>
+    ${m?`<p style="font-size:17px;line-height:1.7" lang="${S.cfg.lang}">${mark(m.text)}</p><p class="ex">${esc(m.vi)}</p><div class="row"><button class="btn" id="mixsay">Nghe cả đoạn</button></div>`:''}</div>
+  <div class="panel"><h2>Bảng tổng hợp (${list.length} từ)</h2>
+    <div class="row" style="margin-top:0"><button class="btn" id="shcopy">Sao chép</button><button class="btn" id="shdl">Tải .txt</button></div>
+    <p class="note" id="shmsg" role="status"></p>
+    <ul class="list" style="max-height:none;margin-top:6px">${list.map(c=>`<li style="display:block"><b>${esc(c.w)}</b> <span>${esc(c.ipa)} ${esc(c.pos||'')}</span><br>${esc(c.m)}${c.ex?`<br><i>${esc(c.ex)}</i>${c.exm?'<br>'+esc(c.exm):''}`:''}${SEC.filter(([k])=>k!=='pos'&&c[k]).map(([k,l])=>`<br><small><b>${l}:</b> ${esc(c[k])}</small>`).join('')}</li>`).join('')||'<li><span>Chưa có từ nào</span></li>'}</ul></div>`;
+  $('#mixgo').onclick=async()=>{
+    $('#mixmsg').textContent='Đang viết đoạn văn…';
+    try{await mixGo(list);renderMix();}catch(e){$('#mixmsg').textContent='Không tạo được đoạn văn. Hãy kiểm tra cài đặt AI hoặc hạn mức.';}
+  };
+  const ms=$('#mixsay'); if(ms)ms.onclick=()=>speak(m.text.replace(/\*\*/g,''));
+  $('#shcopy').onclick=async()=>{try{await navigator.clipboard.writeText(sheetText(list));$('#shmsg').textContent='Đã sao chép.';}catch(e){$('#shmsg').textContent='Trình duyệt không cho sao chép. Hãy dùng Tải .txt.';}};
+  $('#shdl').onclick=()=>dl(new Blob([sheetText(list)],{type:'text/plain;charset=utf-8'}),'tong-hop-'+today()+'.txt');
+}
+
 /* ---- Điều hướng ---- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
-  ['study','deck','stats'].forEach(v=>$('#'+v).hidden=v!==b.dataset.v);
-  if(b.dataset.v==='study'){buildQueue();flipped=false;result=null;say1=true;clearRec();render();}
+  ['study','deck','stats','mix'].forEach(v=>$('#'+v).hidden=v!==b.dataset.v);
+  if(b.dataset.v==='study'){buildQueue();flipped=false;result=null;resultEx=null;say1=true;clearRec();render();}
   if(b.dataset.v==='deck')renderDeck();
   if(b.dataset.v==='stats')renderStats();
+  if(b.dataset.v==='mix')renderMix();
 });
 if('speechSynthesis' in window)speechSynthesis.getVoices();
 S.cfg.ret=S.cfg.ret||.9;S.cards.forEach(migrate);save();
